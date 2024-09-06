@@ -1,0 +1,105 @@
+import pandas as pd
+import numpy as np
+from sklearn.datasets import load_iris
+
+df = load_iris(as_frame = True)['frame']
+df = df[df['target'] <= 1]
+df = df.sample(frac=1, random_state=1234)
+
+train, test = df.iloc[:75,:], df.iloc[75:,:]
+X_train, y_train = train.iloc[:, :-1], train.iloc[:, -1]
+X_test, y_test = test.iloc[:, :-1], test.iloc[:, -1]
+X_cols, y_col = train.columns.tolist()[:-1], train.columns.tolist()[-1]
+
+# Best Result choice in Root Nodes
+def eval_class(df, y_col):
+  result = df[y_col].value_counts().sort_values(ascending = False).index[0]
+  return result
+
+# Calculating Gini impurity
+def eval_gini(left, right, y_col):
+  gini, n1, n2 = 0, len(left), len(right)
+  score = 1 - ((left[y_col].value_counts())**2).sum() / (n1**2)
+  gini += gini * n1 / (n1 + n2)
+  score = 1 - ((right[y_col].value_counts())**2).sum() / (n2**2)
+  gini += score * n2 / (n1 + n2)
+  return gini
+
+
+
+max_depth = 4
+min_samples_split = 4
+
+# making the Tree
+tree = []
+for i in range(0, 2**(max_depth + 1)):
+  tree.append(dict({'struct' : None}))
+
+tree[1]['struct'] = train
+
+for i in range(1, len(tree)):
+
+  # 트리가 끝난 부분은 통과
+  if not isinstance(tree[i]['struct'], pd.DataFrame): continue
+
+  # 최대 깊이에 도달하였으면 클래스를 출력
+  if i >= 2**max_depth:
+    tree[i]['struct'] = eval_class(tree[i]['struct'], y_col)
+    continue
+  data = tree[i]['struct']
+  a, b, c, d, e = '', float('inf'), float('inf'), None, None
+
+  # 최고의 피처와 임계값을 찾은 후 그 기준으로 분할
+  for X_col in X_cols:
+    vals = np.sort(data[X_col].unique())
+    for val in vals[1:]:
+      left, right = data[data[X_col] < val], data[data[X_col] >= val]
+      gini = eval_gini(left, right, y_col)
+      if gini < c:
+        a, b, c, d, e = X_col, val, gini, left, right
+
+  tree[i]['col'] = a
+  tree[i]['val'] = b
+  if len(d) >= min_samples_split:
+    tree[i << 1]['struct'] = d
+  else:
+    tree[i << 1]['struct'] = eval_class(e, y_col)
+
+  if len(e) >= min_samples_split:
+    tree[(i << 1) + 1]['struct'] = e
+  else:
+    tree[(i << 1) + 1]['struct'] = eval_class(e, y_col)
+
+cnt = 0
+for i in range(len(X_train)):
+  row = X_train.iloc[i]
+  ind = 1
+  node = tree[ind]
+  while isinstance(node['struct'], pd.DataFrame):
+    if row[node['col']] < node['val']:
+      ind = ind << 1
+    else:
+      ind = (ind << 1) + 1
+    node = tree[ind]
+
+  y_pred = node['struct']
+  cnt += (y_pred == y_train.iloc[i]) * 1
+
+print(f'학습 데이터셋 정확도:{cnt / len(y_train) * 100: .2f}%')
+
+cnt = 0
+for i in range(len(X_test)):
+  row = X_test.iloc[i]
+  ind = 1
+  node = tree[ind]
+  while isinstance(node['struct'], pd.DataFrame):
+    if row[node['col']] < node['val']:
+      ind = ind << 1
+    else:
+      ind = (ind << 1) + 1
+    node = tree[ind]
+
+  y_pred = node['struct']
+  cnt += (y_pred == y_test.iloc[i]) * 1
+
+print(f'테스트 데이터셋 정확도:{cnt / len(y_test) * 100: .2f}%')
