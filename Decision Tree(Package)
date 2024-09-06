@@ -1,0 +1,137 @@
+# 분류1
+import numpy as np
+import pandas as pd
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
+
+X, y = load_iris(return_X_y = True, as_frame = False)
+X_train, X_test, y_train, y_test = train_test_split(X,
+                                                    y,
+                                                    test_size=0.3,
+                                                    random_state=1234)
+
+clf = DecisionTreeClassifier(criterion = 'entropy',
+                             max_depth=3,
+                             min_samples_split=3,
+                             random_state=1234)
+
+clf = clf.fit(X_train, y_train)
+
+y_pred = clf.predict(X_test)
+acc = (y_pred == y_test).sum() / len(y_test)
+print(f'정확도 : {acc * 100: .2f}%')
+
+# 분류2
+import numpy as np
+from matplotlib import pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.datasets import load_iris
+from sklearn.tree import DecisionTreeClassifier
+from sklearn import tree
+
+X, y = load_iris(return_X_y = True, as_frame = False)
+X_train, X_test, y_train, y_test = train_test_split(X,
+                                                    y,
+                                                    test_size=0.33,
+                                                    random_state=1234)
+
+clf = DecisionTreeClassifier(max_leaf_nodes=3, random_state = 1234)
+clf.fit(X_train, y_train)
+
+tree.plot_tree(clf)
+
+y_pred = clf.predict(X_test)
+acc = (y_pred == y_test).sum() / len(y_test)
+print(f'정확도 : {acc*100: .2f}%')
+
+
+#회귀1
+import numpy as np
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
+
+X, y = load_breast_cancer(return_X_y = True, as_frame = False)
+X_train, X_test, y_train, y_test = train_test_split(X,
+                                                    y,
+                                                    test_size = 0.33,
+                                                    random_state=1234)
+X_train, X_val, y_train, y_val = train_test_split(X_train,
+                                                    y_train,
+                                                    test_size = 0.33,
+                                                    random_state=1234)
+
+max_depths = [None, 3, 6]
+min_samples_splits = [2, 3, 4]
+max_featuress = ['sqrt', 'log2', None]
+
+from itertools import product
+
+best_max_depth = None
+best_min_samples_split = None
+best_max_features = None
+
+best_acc = 0
+
+for max_depth, min_samples_split, max_features in product(max_depths, min_samples_splits, max_featuress):
+  clf = DecisionTreeClassifier(random_state=1234,
+                               max_depth=max_depth,
+                               min_samples_split=min_samples_split,
+                               max_features=max_features)
+  y_pred = clf.fit(X_train, y_train).predict(X_val)
+
+  acc = (y_pred == y_val).mean()
+  if acc > best_acc:
+    best_acc = acc
+    best_max_depth = max_depth
+    best_min_samples_split = min_samples_split
+    best_max_features = max_features
+
+print('max_depth: ', best_max_depth,'\nmin_samples_split: ', best_min_samples_split, '\nmax_features: ', best_max_features)
+
+clf = DecisionTreeClassifier(random_state=1234,
+                             max_depth=max_depth,
+                             min_samples_split=best_min_samples_split,
+                             max_features=best_max_features)
+
+y_pred = clf.fit(X_train, y_train).predict(X_test)
+acc = (y_pred == y_test).mean()
+print(f'정확도:{acc * 100: .2f}%')
+
+
+# 회귀2
+from sklearn.datasets import load_wine
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GridSearchCV
+from sklearn.tree import DecisionTreeClassifier
+
+X, y = load_wine(return_X_y=True, as_frame = True)
+X_train, X_test, y_train, y_test = train_test_split(X,
+                                                    y,
+                                                    test_size=0.33,
+                                                    random_state=1234)
+
+param_grid = {
+    'max_depth': [3, 4, 5],
+    'class_weight' : [None, 'balanced']
+}
+
+
+clf = DecisionTreeClassifier(random_state=1234)
+
+grid_search = GridSearchCV(estimator=clf,
+                           param_grid=param_grid,
+                           cv=5,  # 교차 검증 폴드 수
+                           scoring='accuracy')  # 평가 지표
+grid_search.fit(X_train, y_train)
+
+print('최적의 파라미터:', grid_search.best_params_)
+print('최고의 교차 검증 정확도:', grid_search.best_score_)
+
+best_model = grid_search.best_estimator_
+y_pred = best_model.predict(X_test)
+accuracy = (y_pred == y_test).mean()
+
+print(f'검증 데이터셋 정확도: {accuracy * 100: .2f}%')
